@@ -15,7 +15,7 @@ function nu = approxPermSim(A, B)
 
   [Q, R] = qr(W);
 
-  E = [zeros(k, n^2 -k), eye(k)];
+  E = [zeros(n^2 - k, k), eye(n^2 - k)];
 
   cvx_begin
 
@@ -24,7 +24,7 @@ function nu = approxPermSim(A, B)
   maximize(trace(Z))
 
   subject to
-  E * Q.' * Z * W == zeros(k, k)
+  E * Q.' * Z * W == zeros(n^2 - k, k)    
   ones(1, n^2) * Z * ones(n^2, 1) == n^2
   
   cvx_end
