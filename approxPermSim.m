@@ -8,14 +8,10 @@ function nu = approxPermSim(A, B)
 
   C = [U.' - ones(n, 1) * u1.'; V.' - ones(n, 1) * u1.'];
 
-  C = [C(2:end, :); kron(B.', eye(n)) - kron(eye(n), A)]; % C is (2n + n^2) x n^2
+  C = [C(2:end, :); kron(B.', eye(n)) - kron(eye(n), A)]; % C is (2n - 1 + n^2) x n^2
 
   W = null(C); % TODO: what if C has full (column) rank?  Then W is empty...
   k = size(W, 2);
-
-  [Q, R] = qr(W);
-
-  E = [zeros(n^2 - k, k), eye(n^2 - k)];
 
   cvx_begin
 
@@ -24,7 +20,7 @@ function nu = approxPermSim(A, B)
   maximize(trace(Z))
 
   subject to
-  E * Q.' * Z * W == zeros(n^2 - k, k)    
+  C * Z * W == zeros(2 * n - 1 + n^2, k)
   ones(1, n^2) * Z * ones(n^2, 1) == n^2
   
   cvx_end
