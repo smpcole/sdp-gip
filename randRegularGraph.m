@@ -19,4 +19,6 @@ function A = randRegularGraph(n, k)
     A(v, u) = A(u, v);
   end
 
+  A = A + diag(diag(A)); % Loops contribute 2 toward the degree
+
 end
