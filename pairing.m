@@ -1,5 +1,5 @@
 % Generate a random k-regular graph on n vertices using the pairing method
-function A = randRegularGraph(n, k)
+function A = pairing(n, k)
   A = zeros(n, n);
 
   % Randomly permute the points; pairs of consecutive points will be matched
