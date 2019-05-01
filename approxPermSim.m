@@ -10,6 +10,10 @@ function nu = approxPermSim(A, B)
 
   C = [C(2:end, :); kron(B.', eye(n)) - kron(eye(n), A)]; % C is (2n - 1 + n^2) x n^2
 
+  % Orthonormalize the rows of C
+  C = orth(C.').';
+  k = size(C, 1);
+  
   cvx_begin
 
   variable Z(n^2, n^2) semidefinite nonnegative
@@ -17,7 +21,7 @@ function nu = approxPermSim(A, B)
   maximize(trace(Z))
 
   subject to
-  C * Z == zeros(2 * n - 1 + n^2, n^2)
+  C * Z == zeros(k, n^2);
   ones(1, n^2) * Z * ones(n^2, 1) == n^2
   
   cvx_end
