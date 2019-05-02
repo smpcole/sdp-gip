@@ -11,8 +11,9 @@ function nu = approxPermSim(A, B)
   C = [C(2:end, :); kron(B.', eye(n)) - kron(eye(n), A)]; % C is (2n - 1 + n^2) x n^2
 
   % Orthonormalize the rows of C
-  C = orth(C.').';
-  k = size(C, 1);
+  C = rref(C);
+  k = rank(C);
+  C = C(1 : k, :);
   
   cvx_begin
 
