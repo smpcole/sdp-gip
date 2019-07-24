@@ -2,6 +2,8 @@ function [L, U] = lpIter(A, B, L, U)
   n = size(A, 1);
   curr = zeros(n, n, 2);
 
+  TOL = 10^-9;
+
   cvx_precision default
   
   for i = 1 : n
@@ -41,7 +43,13 @@ function [L, U] = lpIter(A, B, L, U)
 	
 	cvx_end
 
-	curr(i, j, matr) = cvx_optval;
+	if cvx_optval < TOL
+	  curr(i, j, matr) = 0;
+	elseif cvx_optval > 1 - TOL
+	  curr(i, j, matr) = 1;
+	else
+	  curr(i, j, matr) = cvx_optval;
+	end	 
 
       end
       
