@@ -1,4 +1,4 @@
-function [L, U] = lp(A, B)
+function [L, U, k] = lp(A, B)
   n = size(A, 1);
   L = zeros(n);
   U = ones(n);
