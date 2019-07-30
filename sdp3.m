@@ -1,4 +1,4 @@
-function nu = approxPermSim(A, B)
+function nu = sdp3(A, B)
   n = size(A, 1);
 
   U = kron(ones(n, 1), eye(n));
@@ -17,31 +17,19 @@ function nu = approxPermSim(A, B)
   
   cvx_begin
 
-  variable U(n^2 + 1, n^2 + 1) semidefinite
+  variable Z(n^2, n^2) semidefinite nonnegative
 
-  t = U(n^2 + 1, n^2 + 1)
-  W = U(1 : n^2, 1 : n^2)
-  Z = W - (t - 1) * eye(n^2)
-  w = U(1 : n^2, n^2 + 1)
-  d = diag(Z)
+  d = diag(Z);
+  U = [Z, d; d', 1];
 
-  maximize(trace(U) - (n^2 + 2) * t)
+  maximize(trace(Z))
 
   subject to
-
-  t >= 1
-  t <= n + 2
-
-  Z == semidefinite(n^2)
-  Z >= 0
-  C * Z == 0
+  U == semidefinite(n^2 + 1)
+  C * Z == zeros(k, n^2);
   ones(1, n^2) * Z * ones(n^2, 1) == n^2
-
-  w == d
   
   cvx_end
-
-  fprintf('If the optimal value is < %d, then A and B are NOT permutation similar.\n', n - 1 - n^2);
   
   nu = cvx_optval;
 end
