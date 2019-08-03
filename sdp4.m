@@ -1,4 +1,4 @@
-function nu = approxPermSim4(A, B)
+function nu = sdp4(A, B)
   n = size(A, 1);
 
   U = kron(ones(n, 1), eye(n));
