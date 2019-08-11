@@ -1,4 +1,4 @@
-function A = randSymDblStoch(n, k)
+function A = randDblStoch(n, k, symmetric)
 
   A = 0;
 
@@ -8,9 +8,13 @@ function A = randSymDblStoch(n, k)
   for i = 1 : k
     P = eye(n);
     P = P(randperm(n), :);
-    A = A + w(i) * (P + P') / 2;
+    A = A + w(i) * P;
   end
 
+  if symmetric
+    A = (A + A') / 2;
+  end
+  
   disp(A);
 
   if any(any(A <= 0))
