@@ -47,6 +47,17 @@ function [L, U] = sdpSpecial(A, B, Lpath, Upath)
 	X * ones(n, 1) == 1
 	ones(1, n) * X == 1
 	
+	for u = 1 : n
+	  for v = 1 : n
+	    for w = 1 : n
+	      if u ~= w
+		Z(u, v, w, v) == 0
+		Z(v, u, v, w) == 0
+	      end
+	    end
+	  end
+	end
+	
 	A * X == X * B
 
 	for u = 1 : n
