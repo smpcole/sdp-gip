@@ -1,8 +1,6 @@
-function [L, U] = sdpSpecial(A, B, Lpath, Upath)
+function [L, U] = sdpSpecial(A, B)
   n = size(A, 1);
   curr = zeros(n, n, 2);
-
-  files = [fopen(Lpath, 'w'), fopen(Upath, 'w')];
 
   U = kron(ones(n, 1), eye(n));
   V = kron(eye(n), ones(n, 1));
@@ -75,21 +73,11 @@ function [L, U] = sdpSpecial(A, B, Lpath, Upath)
 
 	curr(i, j, matr) = cvx_optval;
 
-	fprintf(files(matr), '%f', cvx_optval);
-	if j < n
-	  fprintf(files(matr), ',');
-	else
-	  fprintf(files(matr), '\n');
-	end
-	
       end
 
     end
 
   end
-
-  fclose(files(1));
-  fclose(files(2));
 
   L = curr(:, :, 1);
   U = curr(:, :, 2);
