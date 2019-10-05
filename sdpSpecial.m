@@ -1,4 +1,4 @@
-function [L, U] = sdpSpecial(A, B)
+function [L, U] = sdpSpecial(A, B, savedata)
   n = size(A, 1);
   curr = zeros(n, n, 2);
 
@@ -16,8 +16,23 @@ function [L, U] = sdpSpecial(A, B)
   k = rank(C);
   C = C(1 : k, :);
 
-  for i = 1 : n
-    for j = 1 : n
+  % Attempt to load saved data from file
+  i = 1;
+  j = 0;
+  L = zeros(n);
+  U = zeros(n);
+  try
+    load(savedata);
+  catch err
+    fprintf('Unable to load data from file %s\n', savedata);
+  end
+  
+  j = j + 1; % Stored (i, j) are the last COMPLETED indices
+  curr(:, :, 1) = L;
+  curr(:, :, 2) = U;
+
+  for i = i : n
+    for j = j : n
 
       for matr = 1 : 2
 
@@ -74,12 +89,20 @@ function [L, U] = sdpSpecial(A, B)
 	curr(i, j, matr) = cvx_optval;
 
       end
+      
+      L = curr(:, :, 1);
+      U = curr(:, :, 2);
 
+      try
+	save(savedata, 'i', 'j', 'L', 'U');
+      catch err
+	fprintf('Warning: unable to save to file %s\n', savedata)
+      end
+      	
     end
 
-  end
+    j = 1;
 
-  L = curr(:, :, 1);
-  U = curr(:, :, 2);
+  end
   
 end
