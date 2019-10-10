@@ -36,6 +36,8 @@ function [L, U] = sdpSpecial(A, B, savedata)
 
       for matr = 1 : 2
 
+	tic;
+	
 	cvx_begin
 
 	variable Z(n, n, n, n) nonnegative
@@ -84,6 +86,7 @@ function [L, U] = sdpSpecial(A, B, savedata)
 	
 	cvx_end
 
+	toc;	
 	disp(cvx_optval);
 
 	curr(i, j, matr) = cvx_optval;
