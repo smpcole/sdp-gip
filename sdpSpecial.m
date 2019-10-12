@@ -40,13 +40,11 @@ function [L, U] = sdpSpecial(A, B, savedata)
 	
 	cvx_begin
 
-	variable Z(n, n, n, n) nonnegative
+	variable Z(n^2, n^2) nonnegative
 
-	Zsq = reshape(Z, n^2, n^2)
-
-	Xhat = diag(Zsq)
+	Xhat = diag(Z)
 	X = reshape(Xhat, n, n)
-	W = [Zsq, Xhat; Xhat', 1]
+	W = [Z, Xhat; Xhat', 1]
 
 	if matr == 1
 	  minimize(X(i, j))
@@ -56,8 +54,8 @@ function [L, U] = sdpSpecial(A, B, savedata)
 
 	subject to
 
-	C * Zsq == 0;
-	sum(sum(Zsq)) == n^2;
+	C * Z == 0;
+	sum(sum(Z)) == n^2;
 	
 	X * ones(n, 1) == 1
 	ones(1, n) * X == 1
@@ -66,8 +64,8 @@ function [L, U] = sdpSpecial(A, B, savedata)
 	  for v = 1 : n
 	    for w = 1 : n
 	      if u ~= w
-		Z(u, v, w, v) == 0
-		Z(v, u, v, w) == 0
+		Z(getIndex(u, v, n), getIndex(w, v, n)) == 0
+		Z(getIndex(v, u, n), getIndex(v, w, n)) == 0
 	      end
 	    end
 	  end
@@ -77,8 +75,8 @@ function [L, U] = sdpSpecial(A, B, savedata)
 
 	for u = 1 : n
 	  for p = 1 : n
-	    sum(sum(reshape(Z(u, :, p, :), n, n) .* B)) == A(u, p)
-	    sum(sum(reshape(Z(:, u, :, p), n, n) .* A)) == B(u, p)
+	    sum(sum(Z(u : n : n^2, p : n : n^2) .* B)) == A(u, p)
+	    sum(sum(Z((u - 1) * n + 1 : u * n, (p - 1) * n + 1 : p * n) .* A)) == B(u, p)
 	  end
 	end
 	
