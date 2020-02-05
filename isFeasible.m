@@ -1,7 +1,7 @@
-function feas = isFeasible(A, B, num_nonneg, psd, truncate)
+function feas = isFeasible(A, B, num_nonneg, psd, basis)
   feas = true;
 
-  if psd && truncate
+  if psd && strcmp(basis, 'truncated')
     fprintf('Truncation is unsupported with positive-semidefinite constraint, so truncation will be ignored...\n');
     truncate = false;
   end
@@ -18,7 +18,7 @@ function feas = isFeasible(A, B, num_nonneg, psd, truncate)
   zeroindices = or(zeroindices, kron(J, A) ~= kron(B, J)); % (3.6)
   zeroindices = or(zeroindices, zeroindices');
 
-  if truncate
+  if strcmp(basis, 'truncated')
 
     global Ztow;
     Ztow = zeros(n^2, n^2);
