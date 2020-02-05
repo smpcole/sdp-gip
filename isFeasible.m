@@ -127,20 +127,9 @@ function feas = isFeasible(A, B, num_nonneg, psd, truncate)
     if num_nonneg >= n^2 * (n^2 - 1) / 2
       Z >= 0;
     else
-      
-      nonneg_indices = randperm(n^2 * (n^2 - 1) / 2);
-      nonneg_indices = sort(nonneg_indices(1 : num_nonneg));
-      curr = 1;
-      i = 1;
-      for ij = 1 : n^2
-	for pq = ij : n^2
-	  if curr <= num_nonneg && i == nonneg_indices(curr)
-	    Z(ij, pq) >= 0;
-	    curr = curr + 1;
-	  end
-	  i = i + 1;
-	end
-      end
+
+      nonneg_indices = randIndices(n^2, n^2, num_nonneg, true);
+      Z(nonneg_indices) >= 0;
 
     end
     
