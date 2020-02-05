@@ -98,7 +98,51 @@ function feas = isFeasible(A, B, num_nonneg, psd, basis)
     cvx_end
 
 
-  else
+  elseif strcmp(basis, 'constraint')
+
+    V = null(C);
+    N = size(V, 2);
+
+    cvx_begin
+
+    variable W(N, N) symmetric;
+    w = diag(W);
+    Waug = [W, w; w', 1];
+
+    subject to
+
+    if psd
+      Waug == semidefinite(N + 1);
+    end
+
+    for ij = 1 : n^2
+      for pq = ij : n^2
+	if zeroindices(ij, pq)
+	  V(ij, :) * W * V(pq, :)' == 0;
+	end
+      end
+    end
+
+    if num_nonneg >= n^2 * (n^2 + 1) / 2
+      V * W * V' >= 0;
+    else
+      % Choose random indices to be nonnegative
+      nonneg_indices = randIndices(n^2, n^2, num_nonneg, true);
+      for ij = 1 : n^2
+	for pq = ij : n^2
+	  if nonneg_indices(ij, pq)
+	    V(ij, :) * W * V(pq, :)' >= 0;
+	  end
+	end
+      end
+    end
+    
+    
+    
+
+    cvx_end
+
+  else % Standard basis
 
     cvx_begin
 
