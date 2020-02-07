@@ -102,12 +102,27 @@ function feas = isFeasible(A, B, num_nonneg, psd, basis)
 
     V = null(C);
     N = size(V, 2);
+    rowsumcoeffs = zeros(N, N, n);
+    colsumcoeffs = zeros(N, N, n);
+    rows = kron(ones(n, 1), eye(n));
+    cols = kron(eye(n), ones(n, 1));
+    for k = 1 : N
+      for l = 1 : N
+	Vkl = V(:, k) .* V(:, l);
+	rowsumcoeffs(k, l, :) = Vkl' * rows;
+	colsumcoeffs(k, l, :) = Vkl' * cols;
+      end
+    end
+    rowsumcoeffs = reshape(rowsumcoeffs, N^2, n);
+    colsumcoeffs = reshape(colsumcoeffs, N^2, n);
+    
 
     cvx_begin
 
     variable W(N, N) symmetric;
-    w = diag(W);
-    Waug = [W, w; w', 1];
+    Wdg = diag(W);
+    Waug = [W, Wdg; Wdg', 1];
+    What = reshape(W, N^2, 1);
 
     subject to
 
@@ -115,6 +130,7 @@ function feas = isFeasible(A, B, num_nonneg, psd, basis)
       Waug == semidefinite(N + 1);
     end
 
+    % Enforce zero entries
     for ij = 1 : n^2
       for pq = ij : n^2
 	if zeroindices(ij, pq)
@@ -123,6 +139,11 @@ function feas = isFeasible(A, B, num_nonneg, psd, basis)
       end
     end
 
+    % double stochasticity
+    What * rowsumcoeffs == 1;
+    What * colsumcoeffs == 1;
+
+    % Entrywise nonnegativity
     if num_nonneg >= n^2 * (n^2 + 1) / 2
       V * W * V' >= 0;
     else
