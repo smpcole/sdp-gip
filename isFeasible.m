@@ -187,7 +187,7 @@ function feas = isFeasible(A, B, num_nonneg, psd, basis)
 
     C * Z == 0;
 
-    Z .* zeroindices == 0; % (2.4) and (3.6)
+    Z(zeroindices) == 0; % (2.4) and (3.6)
 
     % (2.7)
     X * ones(n, 1) == 1;
