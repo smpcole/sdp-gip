@@ -116,21 +116,26 @@ function feas = isFeasible(A, B, num_nonneg, psd, basis)
     rowsumcoeffs = reshape(rowsumcoeffs, N^2, n);
     colsumcoeffs = reshape(colsumcoeffs, N^2, n);
     
-
     cvx_begin
+    fprintf('cvx_begin using constraint basis\n');
 
+    fprintf('Defining variables...');
     variable W(N, N) symmetric;
     Wdg = diag(W);
     Waug = [W, Wdg; Wdg', 1];
     What = reshape(W, N^2, 1);
+    done;
 
     subject to
 
     if psd
+      fprintf('Adding PSD constraint...');
       Waug == semidefinite(N + 1);
+      done;
     end
 
     % Enforce zero entries
+    fprintf('Adding %d zero entry constraints...', sum(sum(zeroindices)));
     for ij = 1 : n^2
       for pq = ij : n^2
 	if zeroindices(ij, pq)
@@ -138,12 +143,16 @@ function feas = isFeasible(A, B, num_nonneg, psd, basis)
 	end
       end
     end
+    done;
 
     % double stochasticity
+    fprintf('Adding double stochasticity constraints...');
     What * rowsumcoeffs == 1;
     What * colsumcoeffs == 1;
+    done;
 
     % Entrywise nonnegativity
+    fprintf('Choosing %d random entries to be nonnegative...', num_nonneg);
     if num_nonneg >= n^2 * (n^2 + 1) / 2
       V * W * V' >= 0;
     else
@@ -157,6 +166,7 @@ function feas = isFeasible(A, B, num_nonneg, psd, basis)
 	end
       end
     end
+    done;
     
     
     
@@ -210,3 +220,6 @@ function feas = isFeasible(A, B, num_nonneg, psd, basis)
   
 end
 
+function done
+  fprintf('done\n');
+end
