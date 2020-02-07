@@ -17,6 +17,7 @@ function feas = isFeasible(A, B, num_nonneg, psd, basis)
   zeroindices = kron(I, J - I) + kron(J - I, I); % (2.4)
   zeroindices = or(zeroindices, kron(J, A) ~= kron(B, J)); % (3.6)
   zeroindices = or(zeroindices, zeroindices');
+  zeroindices = triu(zeroindices); % Only care about upper triangular portion since it is symmetric
 
   if strcmp(basis, 'truncated')
 
@@ -102,19 +103,6 @@ function feas = isFeasible(A, B, num_nonneg, psd, basis)
 
     V = null(C);
     N = size(V, 2);
-    rowsumcoeffs = zeros(N, N, n);
-    colsumcoeffs = zeros(N, N, n);
-    rows = kron(ones(n, 1), eye(n));
-    cols = kron(eye(n), ones(n, 1));
-    for k = 1 : N
-      for l = 1 : N
-	Vkl = V(:, k) .* V(:, l);
-	rowsumcoeffs(k, l, :) = Vkl' * rows;
-	colsumcoeffs(k, l, :) = Vkl' * cols;
-      end
-    end
-    rowsumcoeffs = reshape(rowsumcoeffs, N^2, n);
-    colsumcoeffs = reshape(colsumcoeffs, N^2, n);
     
     cvx_begin
     fprintf('cvx_begin using constraint basis\n');
@@ -123,7 +111,8 @@ function feas = isFeasible(A, B, num_nonneg, psd, basis)
     variable W(N, N) symmetric;
     Wdg = diag(W);
     Waug = [W, Wdg; Wdg', 1];
-    What = reshape(W, N^2, 1);
+    Z = V * W * V';
+    X = reshape(diag(Z), n, n);
     done;
 
     subject to
@@ -136,35 +125,23 @@ function feas = isFeasible(A, B, num_nonneg, psd, basis)
 
     % Enforce zero entries
     fprintf('Adding %d zero entry constraints...', sum(sum(zeroindices)));
-    for ij = 1 : n^2
-      for pq = ij : n^2
-	if zeroindices(ij, pq)
-	  V(ij, :) * W * V(pq, :)' == 0;
-	end
-      end
-    end
+    Z(zeroindices) == 0;
     done;
 
     % double stochasticity
     fprintf('Adding double stochasticity constraints...');
-    What * rowsumcoeffs == 1;
-    What * colsumcoeffs == 1;
+    X * ones(n, 1) == 1;
+    ones(1, n) * X == 1;
     done;
 
     % Entrywise nonnegativity
     fprintf('Choosing %d random entries to be nonnegative...', num_nonneg);
     if num_nonneg >= n^2 * (n^2 + 1) / 2
-      V * W * V' >= 0;
+      Z >= 0;
     else
       % Choose random indices to be nonnegative
       nonneg_indices = randIndices(n^2, n^2, num_nonneg, true);
-      for ij = 1 : n^2
-	for pq = ij : n^2
-	  if nonneg_indices(ij, pq)
-	    V(ij, :) * W * V(pq, :)' >= 0;
-	  end
-	end
-      end
+      Z(nonneg_indices) >= 0;
     end
     done;
     
