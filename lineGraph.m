@@ -17,8 +17,6 @@ function L = lineGraph(G)
 
   end
 
-  disp(LtoG);
-
   assert(k == m);
 
   % For now assume no loops
