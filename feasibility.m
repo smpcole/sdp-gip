@@ -1,14 +1,10 @@
-function feas = feasibility(A, B, num_nonneg, psd, basis)
+function feas = feasibility(A, B, num_nonneg, psd)
   feas = true;
-
-  if psd && strcmp(basis, 'truncated')
-    fprintf('Truncation is unsupported with positive-semidefinite constraint, so truncation will be ignored...\n');
-    truncate = false;
-  end
 
   n = size(A, 1);
   
   C = constraintMatrix(A, B);
+  r = size(C, 1);
   
   I = eye(n);
   J = ones(n, n);
@@ -19,181 +15,51 @@ function feas = feasibility(A, B, num_nonneg, psd, basis)
   zeroindices = or(zeroindices, zeroindices');
   zeroindices = triu(zeroindices); % Only care about upper triangular portion since it is symmetric
 
-  if strcmp(basis, 'truncated')
 
-    global Ztow;
-    Ztow = zeros(n^2, n^2);
-    global wtoZ;
-    wtoZ = zeros(n^4, 2);
-    curr = 1;
-    for ij = 1 : n^2
-      for pq = ij : n^2
-	if ~zeroindices(ij, pq)
-	  Ztow(ij, pq) = curr;
-	  Ztow(pq, ij) = curr;
-	  wtoZ(curr, :) = [ij, pq];
-	  curr = curr + 1;
-	end
-      end
+  model = ccp_model('sdp-gip');
+
+  if psd
+    Z = var_sdp(n^2, n^2);
+  else
+    Z = var_symm(n^2, n^2)
+  end
+
+  model.add_variable(Z);
+
+  model.maximize(trace(Z));
+
+  % C * Z == 0;
+  for pq = 1 : n^2
+    for i = 1 : r
+      Cipq = zeros(n^2, n^2);
+      Cipq(:, pq) = C(i, :);
+      model.add_affine_constraint(inprod(Cipq, Z) == 0);
     end
+  end
 
-    N = curr - 1;
-    wtoZ = wtoZ(1 : N, :);
+  model.add_affine_constraint(double(zeroindices) .* Z == zeros(n^2, n^2));
 
-    global wcols;
-    wcols = {};
-    global Ccols;
-    Ccols = {};
-    for pq = 1 : n^2
-      colmask = false(n^2, n^2);
-      colmask(:, pq) = true;
-      colmask = and(colmask, ~zeroindices);
-      wcols{pq} = Ztow(colmask);
-      Ccols{pq} = 1 : n^2;
-      Ccols{pq} = Ccols{pq}(colmask(:, pq));
-    end
+  % (2.7)
+  for i = 1 : n
+    ei = zeros(n, 1);
+    ei(i) = 1;
+    rowi = diag(kron(ones(n, 1), ei));
+    coli = diag(kron(ei, ones(n, 1)));
+    model.add_affine_constraint(inprod(rowi, Z) == 1);
+    model.add_affine_constraint(inprod(coli, Z) == 1);
+  end
 
-    global wdiag;
-    diagmask = and(eye(n^2), ~zeroindices);
-    wdiag = Ztow(diagmask);
+  % Choose random indices to be nonnegative
+  if num_nonneg >= n^2 * (n^2 - 1) / 2
+    model.add_affine_constraint(Z >= 0);
+  else
 
-    wdiagrows = {};
-    wdiagcols = {};
-    for i = 1 : n
-      rowmask = and(diag(mod(1 : n^2, n) == mod(i, n)), ~zeroindices);
-      wdiagrows{i} = Ztow(rowmask);
-    end
-    for j = 1 : n
-      colmask = false(1, n^2);
-      colmask((j - 1) * n + 1 : j * n) = true;
-      colmask = and(diag(colmask), ~zeroindices);
-      wdiagcols{j} = Ztow(colmask);
-    end
+    nonneg_indices = double(randIndices(n^2, n^2, num_nonneg, true));
+    model.add_affine_constraint(nonneg_indices .* Z >= 0);
 
-    cvx_begin
-
-    variable w(N);
-    display(N);
-    display(length(w));
-
-    subject to
-
-    for pq = 1 : n^2
-      C(:, Ccols{pq}) * w(wcols{pq}) == 0;
-    end
-
-    for i = 1 : n
-      sum(w(wdiagrows{i})) == 1;
-      sum(w(wdiagcols{i})) == 1;
-    end
-
-    if num_nonneg >= length(w)
-      w >= 0;
-    else
-      % Choose random indices to be nonnegative
-      nonneg_indices = randperm(N);
-      nonneg_indices = nonneg_indices(1 : num_nonneg);
-      w(nonneg_indices) >= 0;
-    end
-    
-    cvx_end
-
-
-  elseif strcmp(basis, 'constraint')
-
-    V = null(C);
-    N = size(V, 2);
-    
-    cvx_begin
-    fprintf('cvx_begin using constraint basis\n');
-
-    fprintf('Defining variables...');
-    variable W(N, N) symmetric;
-    Wdg = diag(W);
-    Waug = [W, Wdg; Wdg', 1];
-    Z = V * W * V';
-    X = reshape(diag(Z), n, n);
-    done;
-
-    subject to
-
-    if psd
-      fprintf('Adding PSD constraint...');
-      Waug == semidefinite(N + 1);
-      done;
-    end
-
-    % Enforce zero entries
-    fprintf('Adding %d zero entry constraints...', sum(sum(zeroindices)));
-    Z(zeroindices) == 0;
-    done;
-
-    % double stochasticity
-    fprintf('Adding double stochasticity constraints...');
-    X * ones(n, 1) == 1;
-    ones(1, n) * X == 1;
-    done;
-
-    % Entrywise nonnegativity
-    fprintf('Choosing %d random entries to be nonnegative...', num_nonneg);
-    if num_nonneg >= n^2 * (n^2 + 1) / 2
-      Z >= 0;
-    else
-      % Choose random indices to be nonnegative
-      nonneg_indices = randIndices(n^2, n^2, num_nonneg, true);
-      Z(nonneg_indices) >= 0;
-    end
-    done;
-    
-    
-    
-
-    cvx_end
-
-  else % Standard basis
-
-    cvx_begin
-
-    variable Z(n^2, n^2) symmetric;
-
-    Xhat = diag(Z);
-    X = reshape(Xhat, n, n);
-    W = [Z, Xhat; Xhat', 1];
-
-    subject to
-
-    C * Z == 0;
-
-    Z(zeroindices) == 0; % (2.4) and (3.6)
-
-    % (2.7)
-    X * ones(n, 1) == 1;
-    ones(1, n) * X == 1;
-
-    if psd
-      W == semidefinite(n^2 + 1);
-    end
-
-    % Choose random indices to be nonnegative
-
-    if num_nonneg >= n^2 * (n^2 - 1) / 2
-      Z >= 0;
-    else
-
-      nonneg_indices = randIndices(n^2, n^2, num_nonneg, true);
-      Z(nonneg_indices) >= 0;
-
-    end
-    
-    cvx_end;
-    
-  end  
-  
-  if cvx_optval == Inf
-    feas = false;
   end
   
-  
+  model.solve;
   
 end
 
