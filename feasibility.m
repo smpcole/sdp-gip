@@ -1,4 +1,4 @@
-function feas = isFeasible(A, B, num_nonneg, psd, basis)
+function feas = feasibility(A, B, num_nonneg, psd, basis)
   feas = true;
 
   if psd && strcmp(basis, 'truncated')
