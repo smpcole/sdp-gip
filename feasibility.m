@@ -15,51 +15,99 @@ function feas = feasibility(A, B, num_nonneg, psd)
   zeroindices = or(zeroindices, zeroindices');
   zeroindices = triu(zeroindices); % Only care about upper triangular portion since it is symmetric
 
+  blk{1, 1} = 's';
+  blk{1, 2} = n^2;
 
-  model = ccp_model('sdp-gip');
-
-  if psd
-    Z = var_sdp(n^2, n^2);
-  else
-    Z = var_symm(n^2, n^2)
-  end
-
-  model.add_variable(Z);
-
-  model.maximize(trace(Z));
-
+  N = n^2 * (n^2 + 1) / 2;
+  
   % C * Z == 0;
-  for pq = 1 : n^2
-    for i = 1 : r
+
+  fprintf('Building null space constraints...');
+  At{1} = sparse(N, r * n^2);
+  next = 1;
+  for i = 1 : r
+    for pq = 1 : n^2
       Cipq = zeros(n^2, n^2);
-      Cipq(:, pq) = C(i, :);
-      model.add_affine_constraint(inprod(Cipq, Z) == 0);
+      Cipq(:, pq) = C(i, :) / 2;
+      Cipq(pq, :) = Cipq(pq, :) + C(i, :) / 2;
+      At{1}(:, next) = svec(blk(1, :), Cipq);
+      next = next + 1;
     end
   end
+  done;
 
-  model.add_affine_constraint(double(zeroindices) .* Z == zeros(n^2, n^2));
+  b = zeros(r * n^2, 1);
 
-  % (2.7)
+  fprintf('Building zero index constraints...');
+  numzeroindices = sum(sum(zeroindices));
+  zeroconstraints = sparse(N, numzeroindices);
+  next = 1;
+  for ij = 1 : n^2
+    for pq = ij : n^2
+      if zeroindices(ij, pq)
+	Eijpq = zeros(n^2, n^2);
+	Eijpq(ij, pq) = .5;
+	Eijpq(pq, ij) = Eijpq(pq, ij) + .5;
+	zeroconstraints(:, next) = svec(blk(1, :), Eijpq);
+	next = next + 1;
+      end
+    end
+  end
+  done;
+
+  At{1} = [At{1}, zeroconstraints];
+  b = [b; zeros(numzeroindices, 1)];
+
+  fprintf('Building row/column sum constraints...');
+  rowsums = sparse(N, n);
+  colsums = sparse(N, n);;
   for i = 1 : n
     ei = zeros(n, 1);
     ei(i) = 1;
     rowi = diag(kron(ones(n, 1), ei));
     coli = diag(kron(ei, ones(n, 1)));
-    model.add_affine_constraint(inprod(rowi, Z) == 1);
-    model.add_affine_constraint(inprod(coli, Z) == 1);
+    rowsums(:, i) = svec(blk(1, :), rowi);
+    colsums(:, i) = svec(blk(1, :), coli);
   end
+  done;
 
+  At{1} = [At{1}, rowsums, colsums];
+  b = [b; ones(2 * n, 1)];
+
+  L = [];
+  l = [];
+  Bt = [];
+
+  fprintf('Building nonnegative constraints...');
   % Choose random indices to be nonnegative
-  if num_nonneg >= n^2 * (n^2 - 1) / 2
-    model.add_affine_constraint(Z >= 0);
+  if num_nonneg >= n^2 * (n^2 + 1) / 2
+    L = 0;
   else
 
     nonneg_indices = double(randIndices(n^2, n^2, num_nonneg, true));
-    model.add_affine_constraint(nonneg_indices .* Z >= 0);
+
+    l = zeros(num_nonneg, 1);
+
+    Bt{1} = sparse(N, num_nonneg);
+
+    next = 1;
+    for ij = 1 : n^2
+      for pq = ij : n^2
+	if nonneg_indices(ij, pq)
+	  Eijpq = zeros(n^2, n^2);
+	  Eijpq(ij, pq) = .5;
+	  Eijpq(pq, ij) = Eijpq(pq, ij) + .5;
+	  Bt{1}(:, next) = svec(blk(1, :), Eijpq);
+	end
+      end
+    end
 
   end
-  
-  model.solve;
+  done;
+
+  objfun{1} = sparse(n^2, n^2);
+
+  [obj, X, s, y, S, Z, ybar, v, info, runhist] = sdpnalplus(blk, At, objfun, b, L, [], Bt, l, []);
   
 end
 
