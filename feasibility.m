@@ -18,7 +18,7 @@ function feas = feasibility(A, B, num_nonneg)
   blk{1, 1} = 's';
   blk{1, 2} = n^2;
 
-  N = n^2 * (n^2 + 1) / 2;
+  N = (n^2 + 2) * (n^2 + 1) / 2;
   
   % C * Z == 0;
 
@@ -27,9 +27,9 @@ function feas = feasibility(A, B, num_nonneg)
   next = 1;
   for i = 1 : r
     for pq = 1 : n^2
-      Cipq = zeros(n^2, n^2);
-      Cipq(:, pq) = C(i, :) / 2;
-      Cipq(pq, :) = Cipq(pq, :) + C(i, :) / 2;
+      Cipq = zeros(n^2 + 1, n^2 + 1);
+      Cipq(1 : n^2, pq) = C(i, :) / 2;
+      Cipq(pq, :) = Cipq(pq, :) + Cipq(:, pq)';
       At{1}(:, next) = svec(blk(1, :), Cipq);
       next = next + 1;
     end
@@ -45,7 +45,7 @@ function feas = feasibility(A, B, num_nonneg)
   for ij = 1 : n^2
     for pq = ij : n^2
       if zeroindices(ij, pq)
-	Eijpq = zeros(n^2, n^2);
+	Eijpq = zeros(n^2 + 1, n^2 + 1);
 	Eijpq(ij, pq) = .5;
 	Eijpq(pq, ij) = Eijpq(pq, ij) + .5;
 	zeroconstraints(:, next) = svec(blk(1, :), Eijpq);
@@ -64,8 +64,8 @@ function feas = feasibility(A, B, num_nonneg)
   for i = 1 : n
     ei = zeros(n, 1);
     ei(i) = 1;
-    rowi = diag(kron(ones(n, 1), ei));
-    coli = diag(kron(ei, ones(n, 1)));
+    rowi = diag([kron(ones(n, 1), ei); 0]);
+    coli = diag([kron(ei, ones(n, 1)); 0]);
     rowsums(:, i) = svec(blk(1, :), rowi);
     colsums(:, i) = svec(blk(1, :), coli);
   end
@@ -73,6 +73,20 @@ function feas = feasibility(A, B, num_nonneg)
 
   At{1} = [At{1}, rowsums, colsums];
   b = [b; ones(2 * n, 1)];
+
+  fprintf('Building rank-1 PSD constraints...');
+  Wconstr = sparse(N, n^2 + 1);
+  for ij = 1 : n^2 + 1
+    Wconstrij = zeros(n^2 + 1, n^2 + 1);
+    Wconstrij(ij, ij) = 1;
+    if ij <= n^2
+      Wconstrij(ij, n^2 + 1) = -.5;
+      Wconstrij(n^2 + 1, ij) = -.5;
+    end
+    Wconstr(:, ij) = svec(blk(1, :), Wconstrij);
+  end
+  b = [b; zeros(n^2, 1); 1];
+  done;
 
   L = [];
   l = [];
@@ -94,7 +108,7 @@ function feas = feasibility(A, B, num_nonneg)
     for ij = 1 : n^2
       for pq = ij : n^2
 	if nonneg_indices(ij, pq)
-	  Eijpq = zeros(n^2, n^2);
+	  Eijpq = zeros(n^2 + 1, n^2 + 1);
 	  Eijpq(ij, pq) = .5;
 	  Eijpq(pq, ij) = Eijpq(pq, ij) + .5;
 	  Bt{1}(:, next) = svec(blk(1, :), Eijpq);
