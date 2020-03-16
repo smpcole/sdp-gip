@@ -1,4 +1,4 @@
-function feas = feasibility(A, B, num_nonneg, psd)
+function feas = feasibility(A, B, num_nonneg)
   feas = true;
 
   n = size(A, 1);
