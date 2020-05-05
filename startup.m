@@ -11,7 +11,7 @@
   set(0,'defaulttextfontsize',14);
 %%***********************************************************************
 
-run /Users/samcole/Documents/MATLAB/startup.m
+run(sprintf('%s/startup.m', userpath))
 
 A = shrikhande(4);
 B = lineGraph(completeBipartite(4, 4));
